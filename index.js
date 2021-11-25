@@ -1,6 +1,10 @@
 import { readFile } from "fs";
+import db from "./pg.js";
 
-const parseData = (err, json) => {
+const connectDatabase = (err, json) => {
+  if (err) {
+    console.log(err);
+  }
   const { entries, assets } = JSON.parse(json);
   //Create markets array including each market object
   const markets = entries.map(
@@ -15,13 +19,15 @@ const parseData = (err, json) => {
         city: { "en-US": city },
         country: { "en-US": country },
         date: { "en-US": duration },
-        picture: { "en-US": image },
+        picture: {
+          "en-US": [
+            {
+              sys: { id: imageID },
+            },
+          ],
+        },
       },
     }) => {
-      const images = image.map(({ sys: { id } }) => {
-        return id;
-      });
-
       return {
         id,
         title,
@@ -31,7 +37,7 @@ const parseData = (err, json) => {
         city,
         country,
         duration,
-        images,
+        imageID,
       };
     }
   );
@@ -51,9 +57,79 @@ const parseData = (err, json) => {
     }
   );
 
-  //markets and images are 2 array
-  //each market has a images property that contains the id of image
-  //Target: query single market with market id, return market's data(title, city, country...) and images'url
+  // Add matched url to market
+  markets.forEach((market) => {
+    const matchImage = images.find(({ id }) => {
+      return market.imageID === id;
+    });
+    market.imageUrl = matchImage.url;
+  });
+
+  //Import markets into database
+
+  // markets.forEach(
+  //   ({
+  //     id,
+  //     title,
+  //     lon,
+  //     lat,
+  //     marketDescription,
+  //     city,
+  //     country,
+  //     duration,
+  //     imageID,
+  //     imageUrl,
+  //   }) => {
+  //     db.query(
+  //       `INSERT INTO Post(id, title, lon, lat, imageUrl, marketDescription, country, city, duration, imageID) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *;`,
+  //       [
+  //         id,
+  //         title,
+  //         lon,
+  //         lat,
+  //         imageUrl,
+  //         marketDescription,
+  //         country,
+  //         city,
+  //         duration,
+  //         imageID,
+  //       ]
+  //     );
+  //   }
+  // );
+
+  const market1 = markets[0];
+  // db.query(
+  //   `INSERT INTO post(id, title, lon, lat, "imageUrl", "marketDescription", country, city, duration, "imageID") VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *;`,
+  //   [
+  //     market1.id,
+  //     market1.title,
+  //     market1.lon,
+  //     market1.lat,
+  //     market1.imageUrl,
+  //     market1.marketDescription,
+  //     market1.country,
+  //     market1.city,
+  //     market1.duration,
+  //     market1.imageID,
+  //   ]
+  // );
+  //console.log(market1);
+  // db.query(
+  //   `UPDATE post SET "marketDescription" = $1 WHERE id = '${market1.id}';`,
+  //   [market1.marketDescription]
+  // );
+  //console.log(market1);
+
+  // console.log(markets);
 };
 
-readFile("./contentful.json", "utf8", parseData);
+//readFile("./contentful.json", "utf8", connectDatabase);
+
+// db.query(
+//   `INSERT INTO users (first_name, last_name, age) VALUES($1, $2, $3) RETURNING *;`,
+//   ["test3", "test3", 3]
+// );
+
+const { result } = db.query(`SELECT * FROM post;`);
+console.log(result);
